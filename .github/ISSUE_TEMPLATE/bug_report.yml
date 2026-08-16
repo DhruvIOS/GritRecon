@@ -1,0 +1,33 @@
+name: 🐛 Bug Report
+description: Create a report to help us fix a bug or layout issue
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for testing GritRecon! Please describe the bug clearly below.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: E.g., Professor grade pill failed to update when selecting a name.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Go to UMBC registration page
+        2. Highlight professor name
+        3. Click GritRecon popup badge
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser & OS
+      description: E.g., Chrome 128 on macOS / Windows
+      placeholder: Chrome v128 on macOS
