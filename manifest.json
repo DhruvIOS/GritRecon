@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "GritRecon",
+  "version": "1.0.0",
+  "description": "Instant professor ratings and grade distributions on class search.",
+  "permissions": ["activeTab"],
+  "icons": {
+    "16": "Logo.png",
+    "48": "Logo.png",
+    "128": "Logo.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://csprd-web.ps.umbc.edu/*",
+        "https://*.umbc.edu/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["Logo.png"],
+      "matches": [
+        "https://csprd-web.ps.umbc.edu/*",
+        "https://*.umbc.edu/*"
+      ]
+    }
+  ]
+}
