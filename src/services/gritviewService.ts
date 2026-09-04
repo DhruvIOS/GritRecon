@@ -25,6 +25,8 @@ export async function fetchGritviewData(name: string): Promise<{
   passRate: number;
   gradeDistribution: GradeDistribution;
   reviews: ReviewItem[];
+  gritviewUrl?: string;
+  fullName?: string;
 } | null> {
   const searchTerms = [name];
 
@@ -124,12 +126,19 @@ export async function fetchGritviewData(name: string): Promise<{
           })
         : [];
 
+      const profObj = Array.isArray(data.instructor) ? data.instructor[0] : data.instructor;
+      const profId = profObj ? (profObj.profId || profObj.id || profObj._id) : null;
+      const canonicalName = profObj?.name || profObj?.fullName || name;
+      const gritviewUrl = `https://gritview.io/professor?name=${encodeURIComponent(canonicalName)}${profId ? `&profId=${profId}` : ''}`;
+
       return {
         averageGrade,
         gpa: Math.round(gpaVal * 100) / 100,
         passRate: passRateVal,
         gradeDistribution: gradeDist,
         reviews: formattedReviews,
+        gritviewUrl,
+        fullName: canonicalName,
       };
     } catch (err) {
       console.warn(`Gritview data fetch failed for ${term}:`, err);

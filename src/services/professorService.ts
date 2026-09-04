@@ -25,9 +25,14 @@ export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
       const rmpData =
         rmpResult.status === 'fulfilled' ? rmpResult.value : null;
 
+      const canonicalName = (gritviewData as any)?.fullName || (rmpData as any)?.fullName || name;
+
       if (!gritviewData && !rmpData) {
         const existing = await Professor.findOne({
-          fullName: { $regex: new RegExp(`^${escapeRegExp(name)}$`, 'i') },
+          $or: [
+            { fullName: { $regex: new RegExp(`^${escapeRegExp(name)}`, 'i') } },
+            { fullName: { $regex: new RegExp(`^${escapeRegExp(canonicalName)}`, 'i') } }
+          ]
         });
         return existing;
       }
@@ -40,10 +45,15 @@ export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
       const sortedReviews = mixReviews(mergedReviews);
 
       const updatedProfessor = await Professor.findOneAndUpdate(
-        { fullName: { $regex: new RegExp(`^${escapeRegExp(name)}$`, 'i') } },
+        {
+          $or: [
+            { fullName: { $regex: new RegExp(`^${escapeRegExp(name)}`, 'i') } },
+            { fullName: { $regex: new RegExp(`^${escapeRegExp(canonicalName)}`, 'i') } }
+          ]
+        },
         {
           $set: {
-            fullName: name,
+            fullName: canonicalName,
             averageGrade: gritviewData?.averageGrade || 'N/A',
             gpa: gritviewData?.gpa || 0,
             passRate: gritviewData?.passRate || 0,
@@ -51,6 +61,8 @@ export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
             wouldTakeAgain: rmpData?.wouldTakeAgain ?? -1,
             hasRmpData: rmpData !== null,
             hasGritviewData: gritviewData !== null,
+            rmpUrl: rmpData?.rmpUrl || `https://www.ratemyprofessors.com/search/professors/1244?q=${encodeURIComponent(canonicalName)}`,
+            gritviewUrl: gritviewData?.gritviewUrl || `https://gritview.io/professor?name=${encodeURIComponent(canonicalName)}`,
             gradeDistribution: gritviewData?.gradeDistribution || {
               aPercent: 35,
               bPercent: 35,

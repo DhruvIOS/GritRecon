@@ -3,7 +3,7 @@
   "name": "GritRecon",
   "version": "1.0.0",
   "description": "Instant UMBC course evaluation data.",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "storage"],
   "icons": {
     "16": "Logo.png",
     "48": "Logo.png",
@@ -25,10 +25,7 @@
   "web_accessible_resources": [
     {
       "resources": ["Logo.png"],
-      "matches": [
-        "https://csprd-web.ps.umbc.edu/*",
-        "https://*.umbc.edu/*"
-      ]
+      "matches": ["<all_urls>"]
     }
   ]
 }
