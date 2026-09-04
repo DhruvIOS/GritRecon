@@ -79,6 +79,158 @@ function positionElement(element, x, y, approxWidth, approxHeight) {
   element.style.top = `${Math.round(top)}px`;
 }
 
+// Check if current page is an active course registration or catalog portal
+function isCourseRegistrationContext() {
+  const url = window.location.href.toLowerCase();
+  return (
+    url.includes('csprd-web.ps.umbc.edu') ||
+    url.includes('sa.umbc.edu') ||
+    url.includes('ssr_clsrch') ||
+    url.includes('schedulebuilder') ||
+    url.includes('highpoint') ||
+    url.includes('catalog.umbc.edu') ||
+    url.includes('classsearch') ||
+    url.includes('registration')
+  );
+}
+
+// Strict smart filter to ensure selected text is a valid professor name and not pronouns/student info
+function isValidProfessorName(text) {
+  if (!text) return false;
+  // Clean trailing dots/ellipsis e.g. "Enis Golas..." -> "Enis Golas"
+  const clean = text.replace(/[\.\s]+$/, '').trim();
+  if (clean.length < 3 || clean.length > 40) return false;
+  if (/\d|@|https?:\/\/|[{}[\]<>\\=+\/*#]/i.test(clean)) return false;
+
+  // Reject pronouns & gender identifiers (e.g. (he/him), (she/her), (they/them))
+  if (/\((he|she|they)\/(him|her|them)\)/i.test(clean) || /he\/him|she\/her|they\/them/i.test(clean)) return false;
+
+  // Reject common course codes, table headers & non-professor keywords
+  const blockedTerms = [
+    'ifsm', 'cmsc', 'is', 'stat', 'math', 'biol', 'chem', 'phys', 'engl', 'hist', 'psyc', 'socy', 'econ', 'mgmt',
+    'student', 'undergraduate', 'graduate', 'major', 'minor', 'adviser', 'advisor', 'campus', 'building', 'room',
+    'term', 'semester', 'section', 'units', 'credits', 'lecture', 'discussion', 'lab', 'topic', 'staff', 'tba',
+    'instruction', 'mode', 'location', 'days', 'times', 'meeting', 'dates', 'status', 'component', 'session',
+    'career', 'grading', 'class', 'number', 'attribute', 'requirement', 'description', 'catalog', 'subject'
+  ];
+
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 4) return false;
+
+  for (const w of words) {
+    const sanitized = w.toLowerCase().replace(/[^a-z]/g, '');
+    if (blockedTerms.includes(sanitized)) return false;
+  }
+
+  // Ensure first & last words start with capital letters
+  const firstWord = words[0].replace(/[^a-zA-Z]/g, '');
+  const lastWord = words[words.length - 1].replace(/[^a-zA-Z]/g, '');
+  if (!/^[A-Z][a-zA-Z'\-]+$/.test(firstWord) || !/^[A-Z][a-zA-Z'\-]+$/.test(lastWord)) {
+    return false;
+  }
+
+  return true;
+}
+
+// Automatic DOM Scanner: Inject inline "⚡ Recon" badges next to professor names on UMBC registration tables
+function autoScanAndInjectBadges() {
+  if (!isCourseRegistrationContext()) return;
+
+  const candidateNodes = [];
+
+  // 1. HighPoint & Modern Schedule Table Scanner (Find column titled INSTRUCTOR)
+  const allHeaders = document.querySelectorAll('th, [role="columnheader"], .header, .table-header, td');
+  allHeaders.forEach((header) => {
+    const hText = (header.textContent || '').trim().toUpperCase();
+    if (hText === 'INSTRUCTOR' || (hText.includes('INSTRUCTOR') && !hText.includes('MODE'))) {
+      const row = header.parentElement;
+      const table = header.closest('table, [role="table"], tbody, .grid');
+      if (row && table) {
+        const children = Array.from(row.children);
+        const colIdx = children.indexOf(header);
+        if (colIdx !== -1) {
+          const rows = table.querySelectorAll('tr, [role="row"]');
+          rows.forEach((r) => {
+            if (r !== row && r.children && r.children[colIdx]) {
+              candidateNodes.push(r.children[colIdx]);
+            }
+          });
+        }
+      }
+    }
+  });
+
+  // 2. CSS Selectors for PeopleSoft, HighPoint, and Custom Portals
+  const instructorSelectors = [
+    'span[id*="DERIVED_CLSRCH_SSR_INSTR_LONG"]',
+    'span[id*="MTG_INSTR"]',
+    'span[id*="SSR_INSTR"]',
+    'td.ps_grid-cell[id*="INSTR_LONG"]',
+    '[id*="INSTR_LONG"]',
+    '.instructor-name',
+    '[class*="instructor"]',
+    '[class*="Instructor"]',
+    '[id*="instructor"]',
+    '[id*="Instructor"]',
+    '[data-th*="Instructor"]',
+    '[data-label*="Instructor"]',
+    '[data-heading*="Instructor"]',
+    '[data-property*="instructor"]'
+  ];
+
+  const selectorNodes = document.querySelectorAll(instructorSelectors.join(','));
+  selectorNodes.forEach((node) => candidateNodes.push(node));
+
+  // Deduplicate
+  const uniqueNodes = Array.from(new Set(candidateNodes));
+
+  uniqueNodes.forEach((node) => {
+    if (node.getAttribute('data-gritrecon-injected') === 'true') return;
+
+    // Ignore headers or elements with INSTRUCTION_MODE in id or class
+    const nodeAttr = ((node.id || '') + ' ' + (node.className || '')).toUpperCase();
+    if (nodeAttr.includes('INSTRUCTION_MODE') || nodeAttr.includes('INSTR_MODE')) return;
+
+    const rawText = node.textContent ? node.textContent.trim() : '';
+    if (!rawText || rawText.toLowerCase().includes('staff') || rawText.toLowerCase().includes('tba')) return;
+
+    // Clean trailing ellipsis or dots e.g. "Enis Golas..." -> "Enis Golas"
+    let profName = rawText.replace(/[\.\s]+$/, '').trim();
+    if (profName.includes(',')) {
+      const parts = profName.split(',').map(s => s.trim());
+      if (parts.length >= 2) {
+        profName = `${parts[1]} ${parts[0]}`;
+      }
+    }
+
+    if (!isValidProfessorName(profName)) return;
+
+    node.setAttribute('data-gritrecon-injected', 'true');
+
+    const badge = document.createElement('button');
+    badge.className = 'gritrecon-inline-pill';
+    badge.title = `Click to inspect GritRecon intel for ${profName}`;
+    badge.innerHTML = `⚡ Recon`;
+
+    badge.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = badge.getBoundingClientRect();
+      const scrollX = window.scrollX || window.pageXOffset || 0;
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+      showPopup(profName, rect.left + scrollX, rect.bottom + scrollY);
+    });
+
+    node.appendChild(badge);
+  });
+}
+
+// Periodically run auto-scanner on registration pages
+if (typeof window !== 'undefined') {
+  setInterval(autoScanAndInjectBadges, 1500);
+  document.addEventListener('DOMContentLoaded', autoScanAndInjectBadges);
+}
+
 // Hide elements when clicking elsewhere
 document.addEventListener('mousedown', (e) => {
   if (reconButton && !reconButton.contains(e.target)) {
@@ -89,25 +241,22 @@ document.addEventListener('mousedown', (e) => {
   }
 });
 
-// Show action button on text selection with edge-case selection filters
+// Show action button on text selection with strict smart filters
 document.addEventListener('mouseup', (e) => {
   if (popup && popup.contains(e.target)) return;
   if (reconButton && reconButton.contains(e.target)) return;
+  // Strictly enforce: ONLY trigger floating selection button inside UMBC Registration / Catalog portals!
+  if (!isCourseRegistrationContext()) return;
 
   const selection = window.getSelection();
   const text = selection ? selection.toString().trim() : '';
-
-  if (!text || text.length < 2 || text.length > 50) return;
-  if (/\d|@|https?:\/\/|[{}[\]<>\\=+\/*#]/i.test(text)) return;
-
-  const words = text.split(/\s+/).filter(Boolean);
-  if (words.length < 1 || words.length > 4) return;
+  if (!isValidProfessorName(text)) return;
 
   selectedName = text;
   
   const btn = getOrCreateButton();
   btn.style.display = 'flex';
-  positionElement(btn, e.pageX, e.pageY - 42, 125, 38);
+  positionElement(btn, e.pageX, e.pageY - 42, 140, 42);
 });
 
 // Render UMBC Gold Risk Badges
