@@ -129,11 +129,11 @@ export async function GET(request: Request) {
       hasGritviewData,
     });
 
-    let rmpUrl = (professor as any).rmpUrl;
+    let rmpUrl = professor.rmpUrl;
     if (!rmpUrl || !rmpUrl.includes('/professor/')) {
       rmpUrl = `https://www.ratemyprofessors.com/search/professors/1244?q=${encodeURIComponent(professor.fullName)}`;
     }
-    const gritviewUrl = (professor as any).gritviewUrl || `https://gritview.io/professor?name=${encodeURIComponent(professor.fullName)}`;
+    const gritviewUrl = professor.gritviewUrl || `https://gritview.io/professor?name=${encodeURIComponent(professor.fullName)}`;
 
     const responsePayload = {
       fullName: professor.fullName,

@@ -1,16 +1,14 @@
-import Professor from '@/models/Professor';
+import Professor, { ProfessorDocument } from '@/models/Professor';
 import { fetchGritviewData } from './gritviewService';
 import { fetchRMPData } from './rmpService';
 import { escapeRegExp, mixReviews } from '@/utils/reconUtils';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const inFlightRequests = new Map<string, Promise<any>>();
+const inFlightRequests = new Map<string, Promise<ProfessorDocument | null>>();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
+export async function fetchFreshDataAndUpdateDB(name: string): Promise<ProfessorDocument | null> {
   const key = name.toLowerCase().trim();
   if (inFlightRequests.has(key)) {
-    return inFlightRequests.get(key);
+    return inFlightRequests.get(key) || null;
   }
 
   const fetchPromise = (async () => {
@@ -25,7 +23,7 @@ export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
       const rmpData =
         rmpResult.status === 'fulfilled' ? rmpResult.value : null;
 
-      const canonicalName = (gritviewData as any)?.fullName || (rmpData as any)?.fullName || name;
+      const canonicalName = gritviewData?.fullName || rmpData?.fullName || name;
 
       if (!gritviewData && !rmpData) {
         const existing = await Professor.findOne({
