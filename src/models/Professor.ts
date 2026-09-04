@@ -1,4 +1,6 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, HydratedDocument } from 'mongoose';
+
+export type ProfessorDocument = HydratedDocument<IProfessor>;
 
 interface IReview {
   source: string;

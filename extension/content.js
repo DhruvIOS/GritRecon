@@ -29,7 +29,7 @@ function loadFavorites(callback) {
     try {
       const raw = localStorage.getItem('gritrecon_favorites');
       favoritesCache = raw ? JSON.parse(raw) : {};
-    } catch (e) {
+    } catch {
       favoritesCache = {};
     }
     if (callback) callback(favoritesCache);
@@ -75,7 +75,7 @@ function toggleFavorite(profData, callback) {
   } else {
     try {
       localStorage.setItem('gritrecon_favorites', JSON.stringify(favoritesCache));
-    } catch (e) {}
+    } catch {}
     saveDone(isFavorite(profData.fullName));
   }
 }

@@ -65,6 +65,7 @@ export function findBestMatch(edges: TeacherEdge[], targetName: string): Teacher
 }
 
 export async function fetchRMPData(name: string): Promise<{
+  fullName?: string;
   difficulty: number;
   wouldTakeAgain: number;
   reviews: ReviewItem[];
@@ -232,7 +233,7 @@ export async function fetchRMPData(name: string): Promise<{
       : 0;
 
     const decodedId = matchedNode.id ? Buffer.from(matchedNode.id, 'base64').toString('ascii').replace(/^Teacher-/, '') : null;
-    const legacyId = (teacherData as any)?.legacyId || (matchedNode as any)?.legacyId || decodedId;
+    const legacyId = teacherData?.legacyId || matchedNode?.legacyId || decodedId;
     const rmpUrl = (legacyId && !isNaN(Number(legacyId)))
       ? `https://www.ratemyprofessors.com/professor/${legacyId}`
       : `https://www.ratemyprofessors.com/search/professors/1244?q=${encodeURIComponent(name)}`;

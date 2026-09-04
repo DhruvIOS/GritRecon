@@ -7,6 +7,7 @@ export interface ReviewItem {
 
 export interface TeacherNode {
   id?: string;
+  legacyId?: number | string;
   firstName?: string;
   lastName?: string;
   school?: {
