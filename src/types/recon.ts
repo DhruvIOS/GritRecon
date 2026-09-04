@@ -50,6 +50,7 @@ export interface GradeDistribution {
   cPercent: number;
   dPercent: number;
   fPercent: number;
+  oPercent?: number;
 }
 
 export interface ReconResponsePayload {
@@ -62,5 +63,7 @@ export interface ReconResponsePayload {
   gradeDistribution: GradeDistribution;
   riskFlags: string[];
   recentReviews: ReviewItem[];
+  hasRmpData: boolean;
+  hasGritviewData: boolean;
   lastUpdated: Date | string;
 }

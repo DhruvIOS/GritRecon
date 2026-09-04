@@ -163,16 +163,26 @@ export function calculateRiskFlags(professor: {
   gpa: number;
   recentReviews: ReviewItem[];
   gradeDistribution?: { aPercent: number; fPercent: number };
+  hasRmpData?: boolean;
+  hasGritviewData?: boolean;
 }): string[] {
   const flags: string[] = [];
   const totalReviews = professor.recentReviews?.length || 0;
   const fRate = professor.gradeDistribution?.fPercent || 0;
 
+  if (professor.hasRmpData === false) {
+    flags.push('NO_RMP_DATA');
+  }
+
+  if (professor.hasGritviewData === false) {
+    flags.push('NO_REGISTRAR_DATA');
+  }
+
   if (professor.difficulty >= 3.8 && (professor.passRate < 70 || fRate > 15)) {
     flags.push('TRAP_CLASS');
   }
 
-  if (professor.difficulty <= 2.8 && (professor.gradeDistribution?.aPercent || 0) >= 50) {
+  if (professor.difficulty > 0 && professor.difficulty <= 2.8 && (professor.gradeDistribution?.aPercent || 0) >= 50) {
     flags.push('EASY_A_GEM');
   }
 

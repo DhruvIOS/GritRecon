@@ -26,10 +26,10 @@ export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
         rmpResult.status === 'fulfilled' ? rmpResult.value : null;
 
       if (!gritviewData && !rmpData) {
-        await Professor.deleteOne({
+        const existing = await Professor.findOne({
           fullName: { $regex: new RegExp(`^${escapeRegExp(name)}$`, 'i') },
         });
-        return null;
+        return existing;
       }
 
       const mergedReviews = [
@@ -49,6 +49,8 @@ export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
             passRate: gritviewData?.passRate || 0,
             difficulty: rmpData?.difficulty ?? 0,
             wouldTakeAgain: rmpData?.wouldTakeAgain ?? -1,
+            hasRmpData: rmpData !== null,
+            hasGritviewData: gritviewData !== null,
             gradeDistribution: gritviewData?.gradeDistribution || {
               aPercent: 35,
               bPercent: 35,

@@ -115,6 +115,8 @@ function renderRiskBadges(riskFlags) {
   if (!riskFlags || riskFlags.length === 0) return '';
 
   const badgeMap = {
+    NO_RMP_DATA: { label: 'ℹ️ No RMP Profile', cls: 'warning', title: 'Instructor not listed on RateMyProfessors under UMBC' },
+    NO_REGISTRAR_DATA: { label: 'ℹ️ No Grade Record', cls: 'warning', title: 'No historical UMBC registrar grade distribution recorded' },
     TRAP_CLASS: { label: '⚠️ Trap Class', cls: 'danger', title: 'High fail/drop rate with difficult grading history' },
     EASY_A_GEM: { label: '💎 High Grade Potential', cls: 'gold-badge', title: 'Over 50% of students earn an A with manageable workload' },
     LIMITED_DATA: { label: 'ℹ️ Limited Sample Size', cls: 'warning', title: 'Fewer than 3 evaluations available for this instructor' },
@@ -242,6 +244,7 @@ function renderTabContent(data) {
           <div class="gritrecon-bar-segment c-grade" style="width: ${gradeDist.cPercent}%" title="C: ${gradeDist.cPercent}%"></div>
           <div class="gritrecon-bar-segment d-grade" style="width: ${gradeDist.dPercent}%" title="D: ${gradeDist.dPercent}%"></div>
           <div class="gritrecon-bar-segment f-grade" style="width: ${gradeDist.fPercent}%" title="F: ${gradeDist.fPercent}%"></div>
+          ${gradeDist.oPercent ? `<div class="gritrecon-bar-segment o-grade" style="width: ${gradeDist.oPercent}%" title="Other/W/P: ${gradeDist.oPercent}%"></div>` : ''}
         </div>
         <div class="gritrecon-legend">
           <span class="legend-item"><span class="dot a"></span> A: ${gradeDist.aPercent}%</span>
@@ -249,6 +252,7 @@ function renderTabContent(data) {
           <span class="legend-item"><span class="dot c"></span> C: ${gradeDist.cPercent}%</span>
           <span class="legend-item"><span class="dot d"></span> D: ${gradeDist.dPercent}%</span>
           <span class="legend-item"><span class="dot f"></span> F: ${gradeDist.fPercent}%</span>
+          ${gradeDist.oPercent ? `<span class="legend-item"><span class="dot o"></span> Other: ${gradeDist.oPercent}%</span>` : ''}
         </div>
         <div class="gritrecon-risk-section">
           <div class="gritrecon-pane-header">Student Risk Matrix</div>
@@ -287,11 +291,18 @@ function renderTabContent(data) {
   const passRateDisplay = data.passRate && data.passRate > 0 ? `${data.passRate}%` : 'N/A';
   const isPinned = pinnedProfA && pinnedProfA.fullName.toLowerCase() === data.fullName.toLowerCase();
 
+  let sourceNotice = '💡 <strong>Data Source:</strong> Gritview &amp; RateMyProfessors (Aggregated UMBC Intel)';
+  if (data.hasRmpData === false && data.hasGritviewData !== false) {
+    sourceNotice = 'ℹ️ <strong>Data Source:</strong> Gritview Only (Instructor not found on RateMyProfessors)';
+  } else if (data.hasGritviewData === false && data.hasRmpData !== false) {
+    sourceNotice = 'ℹ️ <strong>Data Source:</strong> RateMyProfessors Only (No UMBC Registrar grade record found)';
+  }
+
   return `
     <div class="gritrecon-tab-pane">
       <div class="gritrecon-stats">
         <div class="gritrecon-stat" title="Course difficulty rated from 1 (Very Easy) to 5 (Extremely Hard)">
-          <span class="gritrecon-stat-value gold-text">${data.difficulty != null && data.difficulty !== 0 ? data.difficulty : 'N/A'}/5</span>
+          <span class="gritrecon-stat-value gold-text">${data.difficulty != null && data.difficulty !== 0 ? `${data.difficulty}/5` : 'N/A'}</span>
           <span class="gritrecon-stat-label">Difficulty ℹ️</span>
         </div>
         <div class="gritrecon-stat" title="Percentage of surveyed students who would take another class with this instructor">
@@ -305,7 +316,7 @@ function renderTabContent(data) {
       </div>
 
       <div class="gritrecon-info-banner">
-        <span>💡 <strong>Student Tip:</strong> Avg Grade shows historical grade awarded by this instructor at UMBC (4.0 GPA scale).</span>
+        <span>${sourceNotice}</span>
       </div>
 
       <div class="gritrecon-quick-preview">

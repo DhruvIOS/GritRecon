@@ -15,6 +15,7 @@ interface ReconData {
     cPercent: number;
     dPercent: number;
     fPercent: number;
+    oPercent?: number;
   };
   riskFlags?: string[];
   recentReviews?: Array<{
@@ -55,6 +56,10 @@ export default function CommandCenter() {
 
   const getRiskBadge = (flag: string) => {
     switch (flag) {
+      case 'NO_RMP_DATA':
+        return { label: 'ℹ️ No RMP Profile', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
+      case 'NO_REGISTRAR_DATA':
+        return { label: 'ℹ️ No Registrar Grades', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/30' };
       case 'TRAP_CLASS':
         return { label: '⚠️ Trap Class', cls: 'bg-red-500/20 text-red-400 border-red-500/30' };
       case 'EASY_A_GEM':
@@ -253,6 +258,13 @@ export default function CommandCenter() {
                           className="bg-red-500 h-full rounded-r-full transition-all"
                           title={`F: ${reconData.gradeDistribution.fPercent}%`}
                         ></div>
+                        {reconData.gradeDistribution.oPercent ? (
+                          <div
+                            style={{ width: `${reconData.gradeDistribution.oPercent}%` }}
+                            className="bg-gray-400 h-full rounded-r-full transition-all"
+                            title={`Other / Pass-Fail / Withdraw: ${reconData.gradeDistribution.oPercent}%`}
+                          ></div>
+                        ) : null}
                       </div>
                       <div className="flex flex-wrap gap-4 text-xs text-zinc-400 mt-3">
                         <span>🟢 A: {reconData.gradeDistribution.aPercent}%</span>
@@ -260,6 +272,9 @@ export default function CommandCenter() {
                         <span>🟠 C: {reconData.gradeDistribution.cPercent}%</span>
                         <span>🔴 D: {reconData.gradeDistribution.dPercent}%</span>
                         <span>⛔ F: {reconData.gradeDistribution.fPercent}%</span>
+                        {reconData.gradeDistribution.oPercent ? (
+                          <span>⚪ Other (W/P): {reconData.gradeDistribution.oPercent}%</span>
+                        ) : null}
                       </div>
                     </div>
                   )}

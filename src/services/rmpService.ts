@@ -153,12 +153,14 @@ export async function fetchRMPData(name: string): Promise<{
               e?.node?.school?.id === UMBC_SCHOOL_ID ||
               (e?.node?.school?.name || '')
                 .toLowerCase()
-                .includes('baltimore county')
+                .includes('baltimore county') ||
+              (e?.node?.school?.name || '')
+                .toLowerCase()
+                .includes('umbc')
           );
-          matchedNode = findBestMatch(
-            umbcEdges.length > 0 ? umbcEdges : globalEdges,
-            name
-          );
+          if (umbcEdges.length > 0) {
+            matchedNode = findBestMatch(umbcEdges, name);
+          }
         }
       } catch (err) {
         console.warn(`RMP global fallback search failed for ${term}:`, err);
@@ -204,12 +206,16 @@ export async function fetchRMPData(name: string): Promise<{
     const teacherData: TeacherNode | undefined = ratingsResult?.data?.node;
     const ratingNodes = teacherData?.ratings?.edges || [];
 
-    const formattedReviews: ReviewItem[] = ratingNodes.map((edge) => ({
-      source: 'RMP',
-      text: cleanReviewText(edge?.node?.comment || ''),
-      gradeReceived: edge?.node?.grade || 'N/A',
-      date: edge?.node?.date ? new Date(edge.node.date) : new Date(),
-    }));
+    const formattedReviews: ReviewItem[] = ratingNodes.map((edge) => {
+      const parsed = edge?.node?.date ? new Date(edge.node.date) : new Date();
+      const validDate = isNaN(parsed.getTime()) ? new Date() : parsed;
+      return {
+        source: 'RMP',
+        text: cleanReviewText(edge?.node?.comment || ''),
+        gradeReceived: edge?.node?.grade || 'N/A',
+        date: validDate,
+      };
+    });
 
     const takeAgain =
       teacherData?.wouldTakeAgainPercent != null &&

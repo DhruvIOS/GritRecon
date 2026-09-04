@@ -334,6 +334,7 @@
 .gritrecon-bar-segment.c-grade { background: #fbbf24; }
 .gritrecon-bar-segment.d-grade { background: #fb923c; }
 .gritrecon-bar-segment.f-grade { background: #ef4444; }
+.gritrecon-bar-segment.o-grade { background: #9ca3af; }
 
 .gritrecon-legend {
   display: flex;
@@ -363,6 +364,7 @@
 .dot.c { background: #fbbf24; }
 .dot.d { background: #fb923c; }
 .dot.f { background: #ef4444; }
+.dot.o { background: #9ca3af; }
 
 .gritrecon-pane-header {
   font-size: 0.78rem;

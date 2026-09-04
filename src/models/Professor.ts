@@ -13,6 +13,7 @@ export interface IGradeDistribution {
   cPercent: number;
   dPercent: number;
   fPercent: number;
+  oPercent?: number;
 }
 
 export interface IProfessor extends Document {
@@ -26,6 +27,8 @@ export interface IProfessor extends Document {
   lastUpdated: Date;
   gradeDistribution?: IGradeDistribution;
   riskFlags?: string[];
+  hasRmpData?: boolean;
+  hasGritviewData?: boolean;
 }
 
 const ProfessorSchema = new Schema<IProfessor>({
@@ -35,6 +38,8 @@ const ProfessorSchema = new Schema<IProfessor>({
   passRate: { type: Number, default: 0 },
   difficulty: { type: Number, default: 0 },
   wouldTakeAgain: { type: Number, default: 0 },
+  hasRmpData: { type: Boolean, default: false },
+  hasGritviewData: { type: Boolean, default: false },
   recentReviews: [{
     source: { type: String, enum: ['Gritview', 'RMP'] },
     text: { type: String },
@@ -46,7 +51,8 @@ const ProfessorSchema = new Schema<IProfessor>({
     bPercent: { type: Number, default: 0 },
     cPercent: { type: Number, default: 0 },
     dPercent: { type: Number, default: 0 },
-    fPercent: { type: Number, default: 0 }
+    fPercent: { type: Number, default: 0 },
+    oPercent: { type: Number, default: 0 }
   },
   riskFlags: [{ type: String }],
   lastUpdated: { type: Date, default: Date.now }

@@ -59,15 +59,17 @@ export async function GET(request: Request) {
     let professor = await Professor.findOne({ fullName: safeRegex });
 
     const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const isOldFormatCache =
+      professor &&
+      professor.gradeDistribution &&
+      professor.gradeDistribution.oPercent === undefined;
+
     const isBadCache =
-      (professor &&
-        sanitizedName.toLowerCase() === 'jeremy dixon' &&
-        professor.difficulty === 2.5 &&
-        professor.wouldTakeAgain === 92) ||
       (professor &&
         professor.difficulty === 0 &&
         professor.wouldTakeAgain === -1 &&
-        (!professor.recentReviews || professor.recentReviews.length === 0));
+        (!professor.recentReviews || professor.recentReviews.length === 0)) ||
+      isOldFormatCache;
 
     const isStale = professor
       ? Date.now() - new Date(professor.lastUpdated).getTime() > SEVEN_DAYS_MS
@@ -113,6 +115,9 @@ export async function GET(request: Request) {
 
     const recentReviews = mixReviews(rawReviews);
 
+    const hasRmpData = professor.hasRmpData ?? (professor.difficulty > 0 || professor.wouldTakeAgain !== -1);
+    const hasGritviewData = professor.hasGritviewData ?? (professor.gpa > 0 || professor.averageGrade !== 'N/A');
+
     const riskFlags = calculateRiskFlags({
       difficulty: professor.difficulty || 0,
       wouldTakeAgain: professor.wouldTakeAgain ?? -1,
@@ -120,6 +125,8 @@ export async function GET(request: Request) {
       gpa: professor.gpa || 0,
       recentReviews,
       gradeDistribution,
+      hasRmpData,
+      hasGritviewData,
     });
 
     const responsePayload = {
@@ -132,6 +139,8 @@ export async function GET(request: Request) {
       gradeDistribution,
       riskFlags,
       recentReviews,
+      hasRmpData: professor.hasRmpData ?? (professor.difficulty > 0 || professor.wouldTakeAgain !== -1),
+      hasGritviewData: professor.hasGritviewData ?? (professor.gpa > 0 || professor.averageGrade !== 'N/A'),
       lastUpdated: professor.lastUpdated,
     };
 

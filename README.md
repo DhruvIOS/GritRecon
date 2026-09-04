@@ -30,6 +30,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 3. Click **Load unpacked**.
 4. Select the `extension/` folder inside this project directory.
 
+## 🐛 Bug Reports & Feedback
+
+Found a bug or have a feature suggestion? 
+
+1. Go to the **[Issues](../../issues)** tab on this GitHub repository.
+2. Click **New Issue**.
+3. Select **🐛 Bug Report** or **✨ Feature Request** to fill out the form.
+
 ## 📄 License
 
 This project is licensed under the [MIT License](file:///Users/dhruvios/Desktop/GritRecon/my-modern-app/LICENSE) - see the [LICENSE](file:///Users/dhruvios/Desktop/GritRecon/my-modern-app/LICENSE) file for details.

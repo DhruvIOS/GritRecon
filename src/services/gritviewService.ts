@@ -61,7 +61,8 @@ export async function fetchGritviewData(name: string): Promise<{
         totalB = 0,
         totalC = 0,
         totalD = 0,
-        totalF = 0;
+        totalF = 0,
+        totalO = 0;
       if (hasGrades) {
         for (const g of data.grades as (GritviewGradeRecord & Record<string, number | string>)[]) {
           totalA += Number(g.A || g.a || (g.grade === 'A' ? g.count || 1 : 0)) || 0;
@@ -69,10 +70,13 @@ export async function fetchGritviewData(name: string): Promise<{
           totalC += Number(g.C || g.c || (g.grade === 'C' ? g.count || 1 : 0)) || 0;
           totalD += Number(g.D || g.d || (g.grade === 'D' ? g.count || 1 : 0)) || 0;
           totalF += Number(g.F || g.f || (g.grade === 'F' ? g.count || 1 : 0)) || 0;
+          totalO += Number(g.O || g.o || (g.grade === 'O' || g.grade === 'W' ? g.count || 1 : 0)) || 0;
         }
       }
 
       const totalGraded = totalA + totalB + totalC + totalD + totalF;
+      const totalEnrolled = totalGraded + totalO;
+
       let gpaVal =
         totalGraded > 0
           ? (totalA * 4 + totalB * 3 + totalC * 2 + totalD * 1) / totalGraded
@@ -91,26 +95,33 @@ export async function fetchGritviewData(name: string): Promise<{
         passRateVal = 85;
       }
 
+      const denom = totalEnrolled > 0 ? totalEnrolled : totalGraded;
+
       const gradeDist =
-        totalGraded > 0
+        denom > 0
           ? {
-              aPercent: Math.round((totalA / totalGraded) * 100),
-              bPercent: Math.round((totalB / totalGraded) * 100),
-              cPercent: Math.round((totalC / totalGraded) * 100),
-              dPercent: Math.round((totalD / totalGraded) * 100),
-              fPercent: Math.round((totalF / totalGraded) * 100),
+              aPercent: Math.round((totalA / denom) * 100),
+              bPercent: Math.round((totalB / denom) * 100),
+              cPercent: Math.round((totalC / denom) * 100),
+              dPercent: Math.round((totalD / denom) * 100),
+              fPercent: Math.round((totalF / denom) * 100),
+              oPercent: Math.round((totalO / denom) * 100),
             }
           : generateEstimatedGradeDistribution(gpaVal, passRateVal);
 
       const averageGrade = gpaToLetter(gpaVal);
 
       const formattedReviews: ReviewItem[] = Array.isArray(data.reviews)
-        ? (data.reviews as GritviewReviewRecord[]).map((r) => ({
-            source: 'Gritview',
-            text: r.body || 'No review comment provided.',
-            gradeReceived: r.grade || 'N/A',
-            date: r.posted ? new Date(r.posted) : new Date(),
-          }))
+        ? (data.reviews as GritviewReviewRecord[]).map((r) => {
+            const parsed = r.posted ? new Date(r.posted) : new Date();
+            const validDate = isNaN(parsed.getTime()) ? new Date() : parsed;
+            return {
+              source: 'Gritview',
+              text: r.body || 'No review comment provided.',
+              gradeReceived: r.grade || 'N/A',
+              date: validDate,
+            };
+          })
         : [];
 
       return {
