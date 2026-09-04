@@ -61,8 +61,8 @@ export async function GET(request: Request) {
     const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const isOldFormatCache =
       professor &&
-      professor.gradeDistribution &&
-      professor.gradeDistribution.oPercent === undefined;
+      ((professor.gradeDistribution && professor.gradeDistribution.oPercent === undefined) ||
+       (professor.hasRmpData !== false && (!professor.rmpUrl || !professor.rmpUrl.includes('/professor/'))));
 
     const isBadCache =
       (professor &&
@@ -129,6 +129,12 @@ export async function GET(request: Request) {
       hasGritviewData,
     });
 
+    let rmpUrl = (professor as any).rmpUrl;
+    if (!rmpUrl || !rmpUrl.includes('/professor/')) {
+      rmpUrl = `https://www.ratemyprofessors.com/search/professors/1244?q=${encodeURIComponent(professor.fullName)}`;
+    }
+    const gritviewUrl = (professor as any).gritviewUrl || `https://gritview.io/professor?name=${encodeURIComponent(professor.fullName)}`;
+
     const responsePayload = {
       fullName: professor.fullName,
       averageGrade: professor.averageGrade || 'N/A',
@@ -141,6 +147,8 @@ export async function GET(request: Request) {
       recentReviews,
       hasRmpData: professor.hasRmpData ?? (professor.difficulty > 0 || professor.wouldTakeAgain !== -1),
       hasGritviewData: professor.hasGritviewData ?? (professor.gpa > 0 || professor.averageGrade !== 'N/A'),
+      rmpUrl,
+      gritviewUrl,
       lastUpdated: professor.lastUpdated,
     };
 

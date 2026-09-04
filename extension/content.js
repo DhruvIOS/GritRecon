@@ -3,7 +3,9 @@ let popup = null;
 let selectedName = '';
 let currentIntelData = null;
 let pinnedProfA = null; // Stored professor for side-by-side comparison
-let activeTab = 'overview'; // 'overview', 'grades', 'reviews', 'compare'
+let activeTab = 'overview'; // 'overview', 'grades', 'reviews', 'compare', 'saved'
+let favoritesCache = {}; // Local memory cache for favorited professors
+let clientIntelCache = {}; // In-memory client cache to prevent redundant backend/API calls
 
 // HTML Sanitization to prevent XSS vulnerability in content script context
 function escapeHTML(str) {
@@ -15,6 +17,71 @@ function escapeHTML(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// Local Storage Helpers for Zero-Login Privacy-First Favorites
+function loadFavorites(callback) {
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.get(['gritrecon_favorites'], (result) => {
+      favoritesCache = result.gritrecon_favorites || {};
+      if (callback) callback(favoritesCache);
+    });
+  } else {
+    try {
+      const raw = localStorage.getItem('gritrecon_favorites');
+      favoritesCache = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      favoritesCache = {};
+    }
+    if (callback) callback(favoritesCache);
+  }
+}
+
+function isFavorite(profName) {
+  if (!profName) return false;
+  const key = profName.trim().toLowerCase();
+  return !!favoritesCache[key];
+}
+
+function toggleFavorite(profData, callback) {
+  if (!profData || !profData.fullName) return;
+  const key = profData.fullName.trim().toLowerCase();
+
+  if (favoritesCache[key]) {
+    delete favoritesCache[key];
+  } else {
+    favoritesCache[key] = {
+      fullName: profData.fullName,
+      gpa: profData.gpa || 0,
+      averageGrade: profData.averageGrade || 'N/A',
+      difficulty: profData.difficulty ?? 0,
+      wouldTakeAgain: profData.wouldTakeAgain ?? -1,
+      passRate: profData.passRate || 0,
+      savedAt: Date.now()
+    };
+  }
+
+  const saveDone = (isFav) => {
+    if (callback) callback(isFav);
+    // Refresh inline table badges to update star indicators
+    const injectedBadges = document.querySelectorAll('.gritrecon-inline-pill');
+    injectedBadges.forEach(btn => btn.removeAttribute('data-gritrecon-injected'));
+    autoScanAndInjectBadges();
+  };
+
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.set({ gritrecon_favorites: favoritesCache }, () => {
+      saveDone(isFavorite(profData.fullName));
+    });
+  } else {
+    try {
+      localStorage.setItem('gritrecon_favorites', JSON.stringify(favoritesCache));
+    } catch (e) {}
+    saveDone(isFavorite(profData.fullName));
+  }
+}
+
+// Initialize favorites on script load
+loadFavorites();
 
 // Create floating action button with UMBC Gold styling
 function getOrCreateButton() {
@@ -207,10 +274,22 @@ function autoScanAndInjectBadges() {
 
     node.setAttribute('data-gritrecon-injected', 'true');
 
+    const logoUrl = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL('Logo.png') : '';
+    const favorited = isFavorite(profName);
+
     const badge = document.createElement('button');
-    badge.className = 'gritrecon-inline-pill';
-    badge.title = `Click to inspect GritRecon intel for ${profName}`;
-    badge.innerHTML = `⚡ Recon`;
+    badge.className = `gritrecon-inline-pill ${favorited ? 'gritrecon-fav-pill' : ''}`;
+    badge.title = favorited 
+      ? `⭐ Favorited Professor - Click to inspect intel for ${profName}` 
+      : `Click to inspect GritRecon intel for ${profName}`;
+    
+    const starHtml = favorited ? `<span class="gritrecon-pill-star" title="Favorited Professor">⭐</span>` : '';
+    const imgHtml = logoUrl 
+      ? `<img src="${logoUrl}" class="gritrecon-pill-logo-img" alt="GritRecon" onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-block';" />`
+      : '';
+    const fallbackIcon = `<span class="gritrecon-pill-icon" style="${logoUrl ? 'display:none;' : ''}">⚡</span>`;
+
+    badge.innerHTML = `${starHtml}${imgHtml}${fallbackIcon}<span class="gritrecon-pill-label">Recon</span>`;
 
     badge.addEventListener('click', (e) => {
       e.preventDefault();
@@ -435,6 +514,50 @@ function renderTabContent(data) {
     `;
   }
 
+  if (activeTab === 'saved') {
+    const savedList = Object.values(favoritesCache).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+
+    if (savedList.length === 0) {
+      return `
+        <div class="gritrecon-tab-pane text-center py-4">
+          <div class="gritrecon-empty-saved-icon">⭐</div>
+          <div class="gritrecon-empty-title">No Saved Professors Yet</div>
+          <div class="gritrecon-sub mb-3">Click the star icon (☆) in any professor's profile header to shortlist them for course registration!</div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="gritrecon-tab-pane gritrecon-saved-pane">
+        <div class="gritrecon-saved-header">
+          <span>Shortlisted Professors (${savedList.length})</span>
+        </div>
+        <div class="gritrecon-saved-grid">
+          ${savedList.map(prof => `
+            <div class="gritrecon-saved-card">
+              <div class="gritrecon-saved-info">
+                <div class="gritrecon-saved-name">${escapeHTML(prof.fullName)}</div>
+                <div class="gritrecon-saved-stats">
+                  <span class="gritrecon-saved-stat">GPA: <strong>${prof.gpa ? prof.gpa.toFixed(2) : 'N/A'}</strong> (${escapeHTML(prof.averageGrade)})</span>
+                  <span class="gritrecon-saved-stat">Diff: <strong>${prof.difficulty ? prof.difficulty.toFixed(1) : 'N/A'}/5</strong></span>
+                  <span class="gritrecon-saved-stat">Again: <strong>${prof.wouldTakeAgain >= 0 ? prof.wouldTakeAgain + '%' : 'N/A'}</strong></span>
+                </div>
+              </div>
+              <div class="gritrecon-saved-actions">
+                <button class="gritrecon-btn-icon-only gritrecon-view-saved-btn" data-name="${escapeHTML(prof.fullName)}" title="Inspect Intel">
+                  🔍
+                </button>
+                <button class="gritrecon-btn-icon-only gritrecon-remove-saved-btn" data-name="${escapeHTML(prof.fullName)}" title="Remove from Saved">
+                  ✕
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   // Default: Overview Tab
   const takeAgainDisplay = data.wouldTakeAgain === -1 ? 'N/A' : `${data.wouldTakeAgain}%`;
   const passRateDisplay = data.passRate && data.passRate > 0 ? `${data.passRate}%` : 'N/A';
@@ -446,6 +569,9 @@ function renderTabContent(data) {
   } else if (data.hasGritviewData === false && data.hasRmpData !== false) {
     sourceNotice = 'ℹ️ <strong>Data Source:</strong> RateMyProfessors Only (No UMBC Registrar grade record found)';
   }
+
+  const rmpUrl = data.rmpUrl || `https://www.ratemyprofessors.com/search/professors?q=${encodeURIComponent(data.fullName)}`;
+  const gritviewUrl = data.gritviewUrl || `https://gritview.io/professor?name=${encodeURIComponent(data.fullName)}`;
 
   return `
     <div class="gritrecon-tab-pane">
@@ -465,7 +591,15 @@ function renderTabContent(data) {
       </div>
 
       <div class="gritrecon-info-banner">
-        <span>${sourceNotice}</span>
+        <div class="gritrecon-source-text">${sourceNotice}</div>
+        <div class="gritrecon-verify-links">
+          <a href="${escapeHTML(rmpUrl)}" target="_blank" rel="noopener noreferrer" class="gritrecon-verify-badge" title="Verify on RateMyProfessors">
+            RateMyProfessors ↗
+          </a>
+          <a href="${escapeHTML(gritviewUrl)}" target="_blank" rel="noopener noreferrer" class="gritrecon-verify-badge" title="Verify on GritView">
+            GritView ↗
+          </a>
+        </div>
       </div>
 
       <div class="gritrecon-quick-preview">
@@ -508,6 +642,40 @@ function attachTabEvents(name, x, y) {
     modal.style.display = 'none';
   });
 
+  // Favorite Star Toggle Event
+  document.getElementById('gritrecon-fav-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (currentIntelData) {
+      toggleFavorite(currentIntelData, () => {
+        renderModalBody(name, x, y);
+      });
+    }
+  });
+
+  // Saved List Actions
+  modal.querySelectorAll('.gritrecon-view-saved-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const profName = btn.getAttribute('data-name');
+      if (profName) {
+        activeTab = 'overview';
+        showPopup(profName, x, y);
+      }
+    });
+  });
+
+  modal.querySelectorAll('.gritrecon-remove-saved-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const profName = btn.getAttribute('data-name');
+      if (profName) {
+        toggleFavorite({ fullName: profName }, () => {
+          renderModalBody(name, x, y);
+        });
+      }
+    });
+  });
+
   // Compare Pinning Event
   document.getElementById('gritrecon-pin-current-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -543,6 +711,8 @@ function renderModalBody(name, x, y) {
     : 'N/A';
 
   const logoUrl = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL('Logo.png') : '';
+  const isFav = isFavorite(data.fullName);
+  const favCount = Object.keys(favoritesCache).length;
 
   modal.innerHTML = `
     <div class="gritrecon-card">
@@ -550,7 +720,12 @@ function renderModalBody(name, x, y) {
         <div class="gritrecon-brand-container">
           ${logoUrl ? `<img class="gritrecon-header-logo" src="${logoUrl}" alt="GritRecon Logo" />` : ''}
           <div class="gritrecon-name-container">
-            <h3 class="gritrecon-title">${escapeHTML(data.fullName)}</h3>
+            <div class="gritrecon-title-row">
+              <h3 class="gritrecon-title">${escapeHTML(data.fullName)}</h3>
+              <button class="gritrecon-fav-star-btn ${isFav ? 'active' : ''}" id="gritrecon-fav-btn" title="${isFav ? 'Remove from Saved' : 'Save to Favorites'}">
+                <span class="gritrecon-fav-star-icon">${isFav ? '★' : '☆'}</span>
+              </button>
+            </div>
             <span class="gritrecon-sub">
               ${pinnedProfA && pinnedProfA.fullName !== data.fullName ? `vs 📌 ${escapeHTML(pinnedProfA.fullName.split(' ')[0])}` : 'UMBC Faculty Intel'}
             </span>
@@ -571,6 +746,7 @@ function renderModalBody(name, x, y) {
         <button class="gritrecon-tab-btn ${activeTab === 'grades' ? 'active' : ''}" data-tab="grades">Grades</button>
         <button class="gritrecon-tab-btn ${activeTab === 'reviews' ? 'active' : ''}" data-tab="reviews">Reviews (${data.recentReviews?.length || 0})</button>
         <button class="gritrecon-tab-btn ${activeTab === 'compare' ? 'active' : ''}" data-tab="compare">⚖️ Compare ${pinnedProfA ? ' (1)' : ''}</button>
+        <button class="gritrecon-tab-btn ${activeTab === 'saved' ? 'active' : ''}" data-tab="saved">⭐ Saved (${favCount})</button>
       </div>
 
       <!-- Active Tab Pane -->
@@ -591,6 +767,15 @@ async function showPopup(name, x, y, force = false) {
   // Auto-switch to compare tab if Prof A is already pinned and we're looking at a different prof
   if (pinnedProfA && pinnedProfA.fullName.toLowerCase() !== name.toLowerCase() && activeTab === 'overview') {
     activeTab = 'compare';
+  }
+
+  const cacheKey = name.trim().toLowerCase();
+
+  // Instant Client Cache Lookup (0ms response, 0 network requests)
+  if (!force && clientIntelCache[cacheKey]) {
+    currentIntelData = clientIntelCache[cacheKey];
+    renderModalBody(name, x, y);
+    return;
   }
 
   const logoUrl = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL ? chrome.runtime.getURL('Logo.png') : '';
@@ -626,6 +811,9 @@ async function showPopup(name, x, y, force = false) {
     }
 
     currentIntelData = await res.json();
+    if (currentIntelData) {
+      clientIntelCache[cacheKey] = currentIntelData;
+    }
     renderModalBody(name, x, y);
 
   } catch (error) {

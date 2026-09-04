@@ -29,6 +29,8 @@ export interface IProfessor extends Document {
   riskFlags?: string[];
   hasRmpData?: boolean;
   hasGritviewData?: boolean;
+  rmpUrl?: string;
+  gritviewUrl?: string;
 }
 
 const ProfessorSchema = new Schema<IProfessor>({
@@ -40,6 +42,8 @@ const ProfessorSchema = new Schema<IProfessor>({
   wouldTakeAgain: { type: Number, default: 0 },
   hasRmpData: { type: Boolean, default: false },
   hasGritviewData: { type: Boolean, default: false },
+  rmpUrl: { type: String, default: '' },
+  gritviewUrl: { type: String, default: '' },
   recentReviews: [{
     source: { type: String, enum: ['Gritview', 'RMP'] },
     text: { type: String },

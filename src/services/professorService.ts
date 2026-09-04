@@ -61,6 +61,8 @@ export async function fetchFreshDataAndUpdateDB(name: string): Promise<any> {
             wouldTakeAgain: rmpData?.wouldTakeAgain ?? -1,
             hasRmpData: rmpData !== null,
             hasGritviewData: gritviewData !== null,
+            rmpUrl: rmpData?.rmpUrl || `https://www.ratemyprofessors.com/search/professors/1244?q=${encodeURIComponent(canonicalName)}`,
+            gritviewUrl: gritviewData?.gritviewUrl || `https://gritview.io/professor?name=${encodeURIComponent(canonicalName)}`,
             gradeDistribution: gritviewData?.gradeDistribution || {
               aPercent: 35,
               bPercent: 35,

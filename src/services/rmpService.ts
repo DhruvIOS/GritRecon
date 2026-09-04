@@ -68,6 +68,7 @@ export async function fetchRMPData(name: string): Promise<{
   difficulty: number;
   wouldTakeAgain: number;
   reviews: ReviewItem[];
+  rmpUrl?: string;
 } | null> {
   const searchTerms = [name];
 
@@ -90,6 +91,7 @@ export async function fetchRMPData(name: string): Promise<{
             edges {
               node {
                 id
+                legacyId
                 firstName
                 lastName
               }
@@ -127,6 +129,7 @@ export async function fetchRMPData(name: string): Promise<{
                 edges {
                   node {
                     id
+                    legacyId
                     firstName
                     lastName
                     school {
@@ -174,6 +177,7 @@ export async function fetchRMPData(name: string): Promise<{
     query ($id: ID!) {
       node(id: $id) {
         ... on Teacher {
+          legacyId
           avgDifficulty
           wouldTakeAgainPercent
           ratings(first: 50) {
@@ -227,10 +231,17 @@ export async function fetchRMPData(name: string): Promise<{
       ? Math.round(teacherData.avgDifficulty * 10) / 10
       : 0;
 
+    const decodedId = matchedNode.id ? Buffer.from(matchedNode.id, 'base64').toString('ascii').replace(/^Teacher-/, '') : null;
+    const legacyId = (teacherData as any)?.legacyId || (matchedNode as any)?.legacyId || decodedId;
+    const rmpUrl = (legacyId && !isNaN(Number(legacyId)))
+      ? `https://www.ratemyprofessors.com/professor/${legacyId}`
+      : `https://www.ratemyprofessors.com/search/professors/1244?q=${encodeURIComponent(name)}`;
+
     return {
       difficulty: difficultyVal,
       wouldTakeAgain: takeAgain,
       reviews: formattedReviews,
+      rmpUrl,
     };
   } catch (err) {
     console.warn(`RMP ratings fetch failed for ${matchedNode.id}:`, err);
